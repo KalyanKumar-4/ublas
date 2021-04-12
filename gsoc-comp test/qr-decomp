@@ -1,0 +1,348 @@
+
+
+qr_function.hpp
+
+
+#ifndef QR_DECOMPOSITION_QR_DECOMPOSITION_HPP
+#define QR_DECOMPOSITION_QR_DECOMPOSITION_HPP
+#include “ops.hpp
+template<typename T, typename InnerProd>std::pair<matrix<T>, matrix<T>> qr_decomposition(const matrix<T>& mat, InnerProd
+inner_prod)
+{
+// alias the size_type
+using size_type = typename matrix<T>::size_type;
+// get the columns of the input matrix
+auto col_collection = mat.columnCollection();
+// transform it into a vector of nvector objects
+container<nvector<T>> basis(col_collection.size());
+std::transform(col_collection.begin(), col_collection.end(), std::back_inserter(basis), []
+(container<T> ctr) {
+return nvector<T>::from_container(ctr);
+});
+// perform gram-schmidt orthogonalization
+auto orthonormal_basis = orthonormalize(basis, inner_prod);
+// transform the basis back into a matrix
+auto q = construct_from_column_vectors(orthonormal_basis);
+// construct r
+matrix<T> r(q.colCount(), q.rowCount());
+for (size_type i = 0; i < r.rowCount(); ++i) {
+for (size_type j = 0; j < i; ++j) {
+r(i, j) = inner_prod(orthonormal_basis[j], basis[i]);
+}
+}
+// return QR
+return std::make_pair(q, r);
+}
+#endif //QR_DECOMPOSITION_QR_DECOMPOSITION_HPP
+
+
+matrix.hpp                                 \\<<<<<2
+
+
+#ifndef matrix_hpp
+#define matrix_hpp
+#include <algorithm>
+#include <complex>
+#include "common.hpp"
+// fwd declaration: in order to use enable_if
+template<typename, typename = void> struct matrix;
+// use matrices only for types that are arithmetic (i.e number types)
+template<typename T>
+struct matrix<T,
+typename std::enable_if<std::is_arithmetic<T>::value || std::is_same<T,
+std::complex<T>>::value>::type>
+{
+typedef unsigned long size_type;
+matrix(size_type N, size_type M)
+: vec(N * M),
+rows(N),
+columns(M)
+{
+}
+matrix(size_type N, size_type M, T filler)
+: vec(N * M),
+rows(N),
+columns(M)
+{
+std::fill(vec.begin(), vec.end(), filler);
+}
+matrix(const matrix& other)
+: vec(other.vec),
+rows(other.rows),
+columns(other.columns)
+{
+}
+matrix(size_type N, size_type M, std::initializer_list<T>lst):vec(N*M),
+                                       rows(N),
+                                       columns(M)
+{
+// only copy if they're the same size as the vector
+if (lst.size() == N * M) {
+std::copy(lst.begin(), lst.end(), vec.begin());
+}
+}
+matrix(size_type N, size_type M, container<T> vector)
+: vec(N * M),
+rows(N),
+columns(M)
+{
+if (vector.size() == N * M) {
+std::copy(vector.begin(), vector.end(), vec.begin());
+}
+}
+matrix& operator=(const matrix& other)
+{
+vec = other.vec;
+rows = other.rows;
+columns = other.columns;
+return *this;
+}
+T& operator()(size_type i, size_type j)
+{
+return vec[i * columns + j];
+}
+const T& operator()(size_type i, size_type j) const
+{
+return vec[i * columns + j];
+}
+size_type rowCount() const
+{
+    return rows;
+}
+size_type colCount() const
+{
+return columns;
+}
+// data interface: return internal data
+container<T> data() const
+{
+return vec;
+}
+/*
+* Extract the columns from this matrix into a
+* vector of vectors so that they can be used in other
+* routines (such as orthogonalization).
+*/
+container<container<T>> columnCollection() const
+{
+container<container<T>> result;
+for (size_type i = 0; i < columns; ++i)
+{
+result.push_back(getColumn(i));
+}
+return result;
+}
+/*
+* Extract the rows from this matrix into a vector of
+* vectors so that they can be used in other routines
+* (such as orthogonalization).
+*/
+container<container<T>> rowCollection() const
+{
+container<container<T>> result;for (size_type i = 0; i < rows; ++i)
+{
+result.push_back(getRow(i));
+}
+return result;
+}
+private:
+container<T> vec;
+size_type rows;
+size_type columns;
+container<T> getRow(size_type rowIndex) const
+{
+container<T> result;
+for (size_type i = 0; i < columns; ++i)
+{
+result.push_back(this->operator()(rowIndex, i));
+}
+return result;
+}
+container<T> getColumn(size_type columnIndex) const
+{
+container<T> result;
+for (size_type i = 0; i < rows; ++i)
+{
+result.push_back(this->operator()(i, columnIndex));
+}
+return result;
+}
+};
+template<typename T>
+std::ostream& operator<<(std::ostream& stream, const matrix<T>& mat)
+{using size_type = typename matrix<T>::size_type;
+stream << "[";
+for (size_type i = 0; i < mat.rowCount(); ++i)
+{
+for (size_type j = 0; j < mat.colCount(); ++j)
+{
+if (j != mat.colCount() - 1) {
+stream << mat(i, j) << ", ";
+} else {
+stream << mat(i, j);
+}
+}
+if (i != mat.rowCount() - 1) {
+stream << ";" << std::endl;
+}
+}
+stream << "]";
+return stream;
+}
+#endif /* matrix_hpp */
+
+
+vector.hpp                                 \\ <<<<<3
+
+
+#ifndef QR_DECOMPOSITION_NVECTOR_HPP
+#define QR_DECOMPOSITION_NVECTOR_HPP
+#include <numeric>
+#include "matrix.hpp"
+// forward declaration
+template<typename, typename = void> struct nvector;
+// partial specialization of matrix in order to add some familiar operator[] syntax
+// rather than using operator() for both matrices and vectors
+template<typename T>
+struct nvector<T,
+typename std::enable_if<std::is_arithmetic<T>::value || std::is_same<T,
+std::complex<T>>::value>::type> {
+typedef typename matrix<T>::size_type size_type;
+nvector(size_type N): vec(N, 1)
+{
+}
+nvector(size_type N, T filler)
+: vec(N, 1, filler)
+{
+}
+nvector(const nvector& other)
+: vec(other.vec)
+{
+}
+nvector(size_type N, std::initializer_list<T> lst)
+: vec(N, 1, lst)
+{
+}
+nvector& operator=(const nvector& other)
+{
+vec = other.vec;
+return *this;
+}
+T& operator[](size_type i)
+{
+return vec(i, 0);
+}
+const T& operator[](size_type i) const
+{
+return vec(i, 0);
+}
+size_type size() const{
+return vec.rowCount();
+}
+typename container<T>::const_iterator begin() const
+{
+return vec.data().cbegin();
+}
+typename container<T>::const_iterator end() const
+{
+return vec.data().cend();
+}
+container<T> data() const
+{
+return vec.data();
+}
+T norm() const
+{
+auto data = vec.data();
+// map
+std::for_each(data.begin(), data.end(),[](T& value) {
+value = value * value;
+});
+// fold
+return std::sqrt(std::accumulate(data.begin(), data.end(), static_cast<T>(0)));
+}
+static nvector<T> from_container(const container<T>& ctr)
+{
+nvector<T> vec(ctr.size());
+for (size_type i = 0; i < vec.size(); ++i) {
+vec[i] = ctr[i];
+}
+return vec;
+}private:
+matrix<T> vec;
+};
+template<typename T>
+std::ostream& operator<<(std::ostream& stream, const nvector<T>& nvec)
+{
+stream << "[";
+for (auto i = 0; i < nvec.size(); ++i)
+{
+if (i != nvec.size() - 1) {
+stream << nvec[i] << "; ";
+} else {
+stream << nvec[i];
+}
+}
+stream << "]";
+return stream;
+}
+// overload operator* for matrix-vector multiplication
+template<typename T>
+nvector<T> operator*(const matrix<T>& M, const nvector<T>& v)
+{
+// dimension check
+if (M.colCount() != v.size()) {
+throw std::invalid_argument("Matrix and vector dimensions are not compatible");
+}
+nvector<T> result(v.size());
+for (auto i = 0; i < M.rowCount(); ++i)
+{
+T sum = 0;
+// do an inner product
+for (auto j = 0; j < M.colCount(); ++j)
+{
+sum += M(i, j) * v[j];
+}
+result[i] = sum;
+}
+return result;
+}
+// scalar-vector multiplication
+template<typename T>
+nvector<T> operator*(const T& scalar, const nvector<T>& v)
+{
+nvector<T> result(v.size());
+for (auto i = 0; i < result.size(); ++i)
+{
+result[i] = v[i] * scalar;
+}
+return result;
+}
+template<typename T>
+nvector<T> operator-(const nvector<T>& v1, const nvector<T>& v2)
+{
+// dim check
+if (v1.size() != v2.size()) {
+throw std::invalid_argument("Vector dimensions are not equal");
+}
+nvector<T> result(v1.size());
+for (auto i = 0; i < v1.size(); ++i)
+{
+result[i] = v1[i] - v2[i];
+}
+return result;
+}
+template<typename T>
+nvector<T> operator+(const nvector<T>& v1, const nvector<T>& v2)
+{
+// dim check
+if (v1.size() != v2.size()) {
+throw std::invalid_argument("Vector dimensions are not equal");}
+nvector<T> result(v1.size());
+for (auto i = 0; i < v1.size(); ++i)
+{
+result[i] = v1[i] + v2[i];
+}
+return result;
+}
+#endif //QR_DECOMPOSITION_NVECTOR_HPP
