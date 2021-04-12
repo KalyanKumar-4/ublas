@@ -1,0 +1,112 @@
+
+
+1. Matrix implementation for zero matrix:
+
+
+Template <typename T>
+Class array
+{
+//Contains raw array
+};
+template <class T>
+std::ostream &operator<<(std::ostream &out, const array<T> &arrayOb)
+{
+out << "[ ";
+for (size_t i = 0; i < arrayOb.getSize(); ++i)
+{
+for (size_t j = 0; j < arrayOb.getSizeY(); ++j)
+{
+out << arrayOb[i][j] << ' ';
+}
+}
+out << ']';
+return out;
+}
+
+2. Elementwise matrix operations:
+
+
+For 2*A: Template <typename T>
+class array {
+..
+..
+}
+template <class T>
+std::ostream &operator<<(std::ostream &out, const array<T> &arrayob)
+{
+out<<”[“;
+for(size_t i=0,i<arrayob.getSize();++i)
+{
+for(size_t j=0;j<arrayob.getSize();++j)
+{
+out<<2*arrayob[i][j]<<’ ‘;
+}
+}
+out<<” ]”;
+return out;
+}
+
+3. Matrix Transposition:
+void swap(int& a,int& b)
+{
+i nt c=a;
+a=b;
+b=c;
+}
+void trans(Matrix& m)
+{
+int n=m.size();
+f or(int i=0;i<n-1;++i)
+{
+f or(int j=i+1;j<n;++j)
+{
+swap(m[i][j],m[j][i]);
+}
+}
+}
+
+
+4. Matrix Multiplication:
+
+
+Matrix mul(const Matrix& a,const Matrix& b)
+{
+int n=a.size();
+int m=a[0].size();
+Int p=b[0].size();
+Matrix c(n,vector<int> (p));
+for(int i=0;i<n;++i)
+{
+for(int j=0;j<p;++j)
+{    
+      int s=0;
+for(int k=0;k<m;++k)
+{
+s =s+a[i][k]*b[k][j];
+}
+c[i][j]=s;
+}
+}
+return c;
+}
+
+
+5.Sum of matrices
+
+For A+B: 
+typedef vector<vector<int>> Matrix;
+Matrix sum(const Matrix& a, const Matrix& b)
+{
+int n = a.size();
+int m = a[0].size();
+Matrix c(n,vector<int>(m));
+for(int i=0;i<n;++i)
+{
+for(int j=0;j<m;++j)
+{
+c[i][j]=a[i][j]+b[i][j];
+}
+}
+return c;
+}
+
