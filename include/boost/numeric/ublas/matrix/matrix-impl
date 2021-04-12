@@ -1,0 +1,19 @@
+Elementwise matrix operations: (for 2*A)
+Template <typename T>
+class array {
+..
+..
+}
+template <class T>
+std::ostream &operator<<(std::ostream &out, const array<T> &arrayob)
+{
+out<<”[“;
+for(size_t i=0,i<arrayob.getSize();++i){
+for(size_t j=0;j<arrayob.getSize();++j)
+{
+out<<2*arrayob[i][j]<<’ ‘;
+}
+}
+out<<” ]”;
+return out;
+}
